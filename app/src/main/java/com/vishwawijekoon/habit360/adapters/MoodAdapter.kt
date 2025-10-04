@@ -11,9 +11,6 @@ import com.vishwawijekoon.habit360.models.MoodEntry
 import java.text.SimpleDateFormat
 import java.util.*
 
-/**
- * Adapter for displaying mood journal entries
- */
 class MoodAdapter(
     private var moods: MutableList<MoodEntry>,
     private val onDelete: (MoodEntry) -> Unit
@@ -27,8 +24,7 @@ class MoodAdapter(
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): MoodViewHolder {
-        val view = LayoutInflater.from(parent.context)
-            .inflate(R.layout.item_mood, parent, false)
+        val view = LayoutInflater.from(parent.context).inflate(R.layout.item_mood, parent, false)
         return MoodViewHolder(view)
     }
 
@@ -37,7 +33,9 @@ class MoodAdapter(
 
         holder.tvEmoji.text = mood.emoji
         holder.tvDate.text = formatDate(mood.timestamp)
-        holder.tvNote.text = mood.note.ifEmpty { "No note" }
+        holder.tvNote.text = mood.note.ifEmpty { "No note provided." }
+
+        holder.tvNote.visibility = if (mood.note.isNotEmpty()) View.VISIBLE else View.GONE
 
         holder.btnDelete.setOnClickListener {
             onDelete(mood)
@@ -53,7 +51,7 @@ class MoodAdapter(
     }
 
     private fun formatDate(timestamp: Long): String {
-        val sdf = SimpleDateFormat("MMM dd, yyyy hh:mm a", Locale.getDefault())
+        val sdf = SimpleDateFormat("MMM dd, yyyy 'at' hh:mm a", Locale.getDefault())
         return sdf.format(Date(timestamp))
     }
 }

@@ -1,6 +1,5 @@
 package com.vishwawijekoon.habit360.utils
 
-
 import android.content.Context
 import android.content.SharedPreferences
 import com.google.gson.Gson
@@ -72,7 +71,7 @@ object PreferenceHelper {
     fun getHabits(context: Context): MutableList<Habit> {
         val json = getPrefs(context).getString(KEY_HABITS, "[]")
         val type = object : TypeToken<MutableList<Habit>>() {}.type
-        return gson.fromJson(json, type)
+        return gson.fromJson(json, type) ?: mutableListOf()
     }
 
     fun addHabit(context: Context, habit: Habit) {
@@ -106,7 +105,7 @@ object PreferenceHelper {
     fun getMoods(context: Context): MutableList<MoodEntry> {
         val json = getPrefs(context).getString(KEY_MOODS, "[]")
         val type = object : TypeToken<MutableList<MoodEntry>>() {}.type
-        return gson.fromJson(json, type)
+        return gson.fromJson(json, type) ?: mutableListOf()
     }
 
     fun addMood(context: Context, mood: MoodEntry) {

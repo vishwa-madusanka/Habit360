@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="com.yourname.habit360">
+    package="com.vishwawijekoon.habit360">
 
-    <!-- Permissions -->
+    <!-- Permissions for notifications -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
     <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
@@ -13,38 +13,39 @@
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
-        android:theme="@style/Theme.Material3.DayNight">
+        android:theme="@style/Theme.Habit360">
 
-        <!-- Splash Activity -->
+        <!-- Your Activities -->
         <activity
-            android:name="com.vishwawijekoon.habit360.activities.SplashActivity"
-            android:exported="true"
-            android:theme="@style/Theme.Material3.DayNight.NoActionBar">
+            android:name=".activities.SplashActivity"
+            android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+        <activity android:name=".activities.LoginActivity" />
+        <activity android:name=".activities.SignUpActivity" />
+        <activity android:name=".activities.MainActivity" />
 
-        <!-- Login Activity -->
-        <activity
-            android:name="com.vishwawijekoon.habit360.activities.LoginActivity"
-            android:exported="false" />
-
-        <!-- SignUp Activity -->
-        <activity
-            android:name="com.vishwawijekoon.habit360.activities.SignUpActivity"
-            android:exported="false" />
-
-        <!-- Main Activity -->
-        <activity
-            android:name="com.vishwawijekoon.habit360.activities.MainActivity"
-            android:exported="false" />
-
-        <!-- Hydration Receiver -->
+        <!-- Register the Notification BroadcastReceiver -->
         <receiver
-            android:name="com.vishwawijekoon.habit360.notifications.HydrationReceiver"
+            android:name=".notifications.HydrationReceiver"
+            android:enabled="true"
             android:exported="false" />
+
+        <!-- Register the Widget Provider Receiver -->
+        <receiver
+            android:name=".widget.HabitWidgetProvider"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/habit_widget_info" />
+        </receiver>
+
     </application>
 
 </manifest>

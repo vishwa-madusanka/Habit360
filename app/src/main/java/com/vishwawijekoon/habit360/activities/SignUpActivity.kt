@@ -1,6 +1,6 @@
 package com.vishwawijekoon.habit360.activities
 
-
+import android.content.Intent
 import android.os.Bundle
 import android.widget.TextView
 import android.widget.Toast
@@ -11,10 +11,6 @@ import com.vishwawijekoon.habit360.R
 import com.vishwawijekoon.habit360.models.User
 import com.vishwawijekoon.habit360.utils.PreferenceHelper
 
-/**
- * Sign Up Activity for new user registration
- * Validates input and creates new user account
- */
 class SignUpActivity : AppCompatActivity() {
 
     private lateinit var etUsername: TextInputEditText
@@ -22,6 +18,7 @@ class SignUpActivity : AppCompatActivity() {
     private lateinit var etPassword: TextInputEditText
     private lateinit var etConfirmPassword: TextInputEditText
     private lateinit var btnSignUp: MaterialButton
+    private lateinit var tvLogin: TextView
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -37,6 +34,7 @@ class SignUpActivity : AppCompatActivity() {
         etPassword = findViewById(R.id.etPassword)
         etConfirmPassword = findViewById(R.id.etConfirmPassword)
         btnSignUp = findViewById(R.id.btnSignUp)
+        tvLogin = findViewById(R.id.tvLogin)
     }
 
     private fun setupListeners() {
@@ -44,7 +42,7 @@ class SignUpActivity : AppCompatActivity() {
             validateAndSignUp()
         }
 
-        findViewById<TextView>(R.id.tvLogin).setOnClickListener {
+        tvLogin.setOnClickListener {
             finish()
         }
     }
@@ -55,50 +53,27 @@ class SignUpActivity : AppCompatActivity() {
         val password = etPassword.text.toString()
         val confirmPassword = etConfirmPassword.text.toString()
 
-        // Validation
-        if (username.isEmpty()) {
-            etUsername.error = "Username is required"
-            return
-        }
-
-        if (email.isEmpty()) {
-            etEmail.error = "Email is required"
-            return
-        }
-
-        if (!android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
-            etEmail.error = "Invalid email format"
-            return
-        }
-
-        if (password.isEmpty()) {
-            etPassword.error = "Password is required"
-            return
-        }
-
-        if (password.length < 6) {
-            etPassword.error = "Password must be at least 6 characters"
+        if (username.isEmpty() || email.isEmpty() || password.isEmpty()) {
+            Toast.makeText(this, "Please fill all fields", Toast.LENGTH_SHORT).show()
             return
         }
 
         if (password != confirmPassword) {
-            etConfirmPassword.error = "Passwords do not match"
+            Toast.makeText(this, "Passwords do not match", Toast.LENGTH_SHORT).show()
             return
         }
 
-        // Check if email already exists
-        val existingUsers = PreferenceHelper.getAllUsers(this)
-        if (existingUsers.any { it.email == email }) {
-            Toast.makeText(this, "Email already registered", Toast.LENGTH_SHORT).show()
-            return
-        }
-
-        // Create new user
+        // Save user
         val newUser = User(username, email, password)
         PreferenceHelper.saveUser(this, newUser)
         PreferenceHelper.setLoggedIn(this, newUser)
 
-        Toast.makeText(this, "Account created successfully!", Toast.LENGTH_SHORT).show()
-        finish()
+        Toast.makeText(this, "Account created!", Toast.LENGTH_SHORT).show()
+
+        // Redirect and finish
+        val intent = Intent(this, MainActivity::class.java)
+        intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+        startActivity(intent)
+        finish() // CRITICAL: Finish SignUpActivity
     }
 }
