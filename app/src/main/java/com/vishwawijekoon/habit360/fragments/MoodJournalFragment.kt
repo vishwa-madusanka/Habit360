@@ -1,11 +1,13 @@
 package com.vishwawijekoon.habit360.fragments
 
 import android.app.AlertDialog
+import android.content.Intent
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.Button
+import android.widget.ImageButton
 import android.widget.TextView
 import android.widget.Toast
 import androidx.fragment.app.Fragment
@@ -20,10 +22,14 @@ import java.util.*
 
 class MoodJournalFragment : Fragment() {
 
+    // View declarations
     private lateinit var rvMoods: RecyclerView
     private lateinit var tvEmptyMoods: TextView
     private lateinit var etNote: TextInputEditText
     private lateinit var btnSaveMood: Button
+    private lateinit var btnShare: ImageButton
+
+    // Data and Adapter
     private lateinit var moodAdapter: MoodAdapter
     private var moods = mutableListOf<MoodEntry>()
     private var selectedEmoji: String? = null
@@ -33,6 +39,7 @@ class MoodJournalFragment : Fragment() {
         inflater: LayoutInflater, container: ViewGroup?,
         savedInstanceState: Bundle?
     ): View? {
+        // Inflate the layout for this fragment
         return inflater.inflate(R.layout.fragment_mood_journal, container, false)
     }
 
@@ -51,6 +58,7 @@ class MoodJournalFragment : Fragment() {
         tvEmptyMoods = view.findViewById(R.id.tvEmptyMoods)
         etNote = view.findViewById(R.id.etNote)
         btnSaveMood = view.findViewById(R.id.btnSaveMood)
+        btnShare = view.findViewById(R.id.btnShare) // Initialize the share button
 
         emojiViews.addAll(listOf(
             view.findViewById(R.id.emojiHappy),
@@ -62,7 +70,7 @@ class MoodJournalFragment : Fragment() {
     }
 
     private fun loadMoods() {
-        moods = PreferenceHelper.getMoods(requireContext())
+        moods = PreferenceHelper.getMoods(requireContext()).toMutableList()
     }
 
     private fun setupRecyclerView() {
@@ -78,8 +86,8 @@ class MoodJournalFragment : Fragment() {
                 highlightSelectedEmoji(emojiView)
             }
         }
-
         btnSaveMood.setOnClickListener { saveMoodEntry() }
+        btnShare.setOnClickListener { shareLatestMood() } // Set listener for the share button
     }
 
     private fun updateEmptyState() {
@@ -131,8 +139,33 @@ class MoodJournalFragment : Fragment() {
     }
 
     private fun refreshMoodList() {
-        moods = PreferenceHelper.getMoods(requireContext())
+        loadMoods()
         moodAdapter.updateMoods(moods)
         updateEmptyState()
+    }
+
+    /**
+     * Creates and launches an implicit intent to share the latest mood summary.
+     */
+    private fun shareLatestMood() {
+        val latestMood = moods.maxByOrNull { it.timestamp }
+        if (latestMood == null) {
+            Toast.makeText(requireContext(), "No mood logged yet to share.", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        // Construct the shareable text
+        val summary = "Feeling ${latestMood.emoji} today. My note: '${latestMood.note}' #Habit360"
+
+        // Create the implicit Intent with ACTION_SEND
+        val sendIntent: Intent = Intent().apply {
+            action = Intent.ACTION_SEND
+            putExtra(Intent.EXTRA_TEXT, summary)
+            type = "text/plain"
+        }
+
+        // Show the Android share sheet
+        val shareIntent = Intent.createChooser(sendIntent, "Share Your Mood")
+        startActivity(shareIntent)
     }
 }
