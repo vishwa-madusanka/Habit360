@@ -1,6 +1,5 @@
 package com.vishwawijekoon.habit360.notifications
 
-
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
@@ -12,15 +11,11 @@ import androidx.core.app.NotificationCompat
 import com.vishwawijekoon.habit360.R
 import com.vishwawijekoon.habit360.activities.MainActivity
 
-/**
- * BroadcastReceiver for hydration reminders
- * Sends notifications at specified intervals
- */
 class HydrationReceiver : BroadcastReceiver() {
 
     companion object {
         const val CHANNEL_ID = "hydration_channel"
-        const val NOTIFICATION_ID = 1001
+        const val NOTIFICATION_ID = 101
     }
 
     override fun onReceive(context: Context, intent: Intent) {
@@ -47,21 +42,23 @@ class HydrationReceiver : BroadcastReceiver() {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
         }
 
-        val pendingIntent = PendingIntent.getActivity(
-            context, 0, intent,
+        val pendingIntentFlags = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
-        )
+        } else {
+            PendingIntent.FLAG_UPDATE_CURRENT
+        }
 
-        val notification = NotificationCompat.Builder(context, CHANNEL_ID)
-            .setSmallIcon(android.R.drawable.ic_dialog_info)
+        val pendingIntent = PendingIntent.getActivity(context, 0, intent, pendingIntentFlags)
+
+        val builder = NotificationCompat.Builder(context, CHANNEL_ID)
+            .setSmallIcon(R.drawable.ic_water_drop) // Make sure you have this drawable
             .setContentTitle("Time to Hydrate! 💧")
-            .setContentText("Don't forget to drink water!")
+            .setContentText("Don't forget to drink a glass of water to stay fresh.")
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)
             .setContentIntent(pendingIntent)
             .setAutoCancel(true)
-            .build()
 
         val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        notificationManager.notify(NOTIFICATION_ID, notification)
+        notificationManager.notify(NOTIFICATION_ID, builder.build())
     }
 }

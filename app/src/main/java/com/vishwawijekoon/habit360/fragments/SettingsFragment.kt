@@ -1,10 +1,10 @@
 package com.vishwawijekoon.habit360.fragments
 
-
 import android.app.AlarmManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
+import android.os.Build
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
@@ -18,10 +18,6 @@ import com.vishwawijekoon.habit360.activities.LoginActivity
 import com.vishwawijekoon.habit360.notifications.HydrationReceiver
 import com.vishwawijekoon.habit360.utils.PreferenceHelper
 
-/**
- * Settings Fragment for app configuration
- * Manages hydration reminders and user logout
- */
 class SettingsFragment : Fragment() {
 
     private lateinit var etInterval: TextInputEditText
@@ -29,8 +25,7 @@ class SettingsFragment : Fragment() {
     private lateinit var btnLogout: Button
 
     override fun onCreateView(
-        inflater: LayoutInflater,
-        container: ViewGroup?,
+        inflater: LayoutInflater, container: ViewGroup?,
         savedInstanceState: Bundle?
     ): View? {
         return inflater.inflate(R.layout.fragment_settings, container, false)
@@ -67,42 +62,35 @@ class SettingsFragment : Fragment() {
 
     private fun saveHydrationReminder() {
         val intervalText = etInterval.text.toString().trim()
-
-        if (intervalText.isEmpty()) {
-            etInterval.error = "Please enter interval"
-            return
-        }
-
         val intervalMinutes = intervalText.toIntOrNull()
-        if (intervalMinutes == null || intervalMinutes < 1) {
-            etInterval.error = "Invalid interval"
+
+        if (intervalMinutes == null || intervalMinutes <= 0) {
+            Toast.makeText(requireContext(), "Please enter a valid interval in minutes.", Toast.LENGTH_SHORT).show()
             return
         }
 
         PreferenceHelper.setHydrationInterval(requireContext(), intervalMinutes)
         scheduleHydrationReminder(intervalMinutes)
 
-        Toast.makeText(
-            requireContext(),
-            "Reminder set for every $intervalMinutes minutes",
-            Toast.LENGTH_SHORT
-        ).show()
+        Toast.makeText(requireContext(), "Reminder set for every $intervalMinutes minutes.", Toast.LENGTH_SHORT).show()
     }
 
     private fun scheduleHydrationReminder(intervalMinutes: Int) {
         val alarmManager = requireContext().getSystemService(Context.ALARM_SERVICE) as AlarmManager
         val intent = Intent(requireContext(), HydrationReceiver::class.java)
-        val pendingIntent = PendingIntent.getBroadcast(
-            requireContext(),
-            0,
-            intent,
-            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
-        )
 
-        // Cancel existing alarm
+        val pendingIntentFlags = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+        } else {
+            PendingIntent.FLAG_UPDATE_CURRENT
+        }
+
+        val pendingIntent = PendingIntent.getBroadcast(requireContext(), 0, intent, pendingIntentFlags)
+
+        // Cancel any existing alarm to reset it
         alarmManager.cancel(pendingIntent)
 
-        // Set repeating alarm
+        // Set the new repeating alarm
         val intervalMillis = intervalMinutes * 60 * 1000L
         val triggerTime = System.currentTimeMillis() + intervalMillis
 
@@ -116,7 +104,6 @@ class SettingsFragment : Fragment() {
 
     private fun logout() {
         PreferenceHelper.logout(requireContext())
-
         val intent = Intent(requireContext(), LoginActivity::class.java)
         intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
         startActivity(intent)

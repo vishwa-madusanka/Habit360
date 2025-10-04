@@ -1,7 +1,9 @@
 package com.vishwawijekoon.habit360.fragments
 
-
 import android.app.AlertDialog
+import android.appwidget.AppWidgetManager
+import android.content.ComponentName
+import android.content.Intent
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
@@ -18,12 +20,9 @@ import com.vishwawijekoon.habit360.R
 import com.vishwawijekoon.habit360.adapters.HabitAdapter
 import com.vishwawijekoon.habit360.models.Habit
 import com.vishwawijekoon.habit360.utils.PreferenceHelper
+import com.vishwawijekoon.habit360.widget.HabitWidgetProvider
 import java.util.*
 
-/**
- * Fragment for managing daily habits
- * Implements CRUD operations: Create, Read, Update, Delete
- */
 class HabitFragment : Fragment() {
 
     private lateinit var rvHabits: RecyclerView
@@ -33,8 +32,7 @@ class HabitFragment : Fragment() {
     private var habits = mutableListOf<Habit>()
 
     override fun onCreateView(
-        inflater: LayoutInflater,
-        container: ViewGroup?,
+        inflater: LayoutInflater, container: ViewGroup?,
         savedInstanceState: Bundle?
     ): View? {
         return inflater.inflate(R.layout.fragment_habit, container, false)
@@ -63,109 +61,61 @@ class HabitFragment : Fragment() {
     private fun setupRecyclerView() {
         habitAdapter = HabitAdapter(
             habits,
-            onEdit = { habit -> showEditDialog(habit) },
+            onEdit = { habit -> showAddOrEditDialog(habit) },
             onDelete = { habit -> deleteHabit(habit) },
-            onToggleComplete = { habit -> updateHabit(habit) }
+            onToggleComplete = { habit ->
+                updateHabit(habit)
+                updateWidget() // Update widget on completion toggle
+            }
         )
-
         rvHabits.layoutManager = LinearLayoutManager(requireContext())
         rvHabits.adapter = habitAdapter
     }
 
     private fun setupListeners() {
         fabAddHabit.setOnClickListener {
-            showAddDialog()
+            showAddOrEditDialog()
         }
     }
 
-    private fun showAddDialog() {
-        val dialogView = LayoutInflater.from(requireContext())
-            .inflate(R.layout.dialog_add_habit, null)
-
+    private fun showAddOrEditDialog(habit: Habit? = null) {
+        val dialogView = LayoutInflater.from(requireContext()).inflate(R.layout.dialog_add_habit, null)
+        val tvDialogTitle = dialogView.findViewById<TextView>(R.id.tvDialogTitle)
         val etName = dialogView.findViewById<TextInputEditText>(R.id.etHabitName)
         val etDescription = dialogView.findViewById<TextInputEditText>(R.id.etHabitDescription)
         val btnSave = dialogView.findViewById<Button>(R.id.btnSave)
         val btnCancel = dialogView.findViewById<Button>(R.id.btnCancel)
 
-        val dialog = AlertDialog.Builder(requireContext())
-            .setView(dialogView)
-            .create()
+        tvDialogTitle.text = if (habit == null) "Add New Habit" else "Edit Habit"
+        etName.setText(habit?.name)
+        etDescription.setText(habit?.description)
+
+        val dialog = AlertDialog.Builder(requireContext()).setView(dialogView).create()
 
         btnSave.setOnClickListener {
             val name = etName.text.toString().trim()
-            val description = etDescription.text.toString().trim()
-
             if (name.isEmpty()) {
                 etName.error = "Habit name is required"
                 return@setOnClickListener
             }
-
-            // CREATE operation
-            val newHabit = Habit(
-                id = UUID.randomUUID().toString(),
-                name = name,
-                description = description
-            )
-
-            PreferenceHelper.addHabit(requireContext(), newHabit)
-            loadHabits()
-            habitAdapter.updateHabits(habits)
-            updateEmptyState()
-
-            Toast.makeText(requireContext(), "Habit added!", Toast.LENGTH_SHORT).show()
-            dialog.dismiss()
-        }
-
-        btnCancel.setOnClickListener {
-            dialog.dismiss()
-        }
-
-        dialog.show()
-    }
-
-    private fun showEditDialog(habit: Habit) {
-        val dialogView = LayoutInflater.from(requireContext())
-            .inflate(R.layout.dialog_add_habit, null)
-
-        val tvTitle = dialogView.findViewById<TextView>(R.id.tvDialogTitle)
-        val etName = dialogView.findViewById<TextInputEditText>(R.id.etHabitName)
-        val etDescription = dialogView.findViewById<TextInputEditText>(R.id.etHabitDescription)
-        val btnSave = dialogView.findViewById<Button>(R.id.btnSave)
-        val btnCancel = dialogView.findViewById<Button>(R.id.btnCancel)
-
-        tvTitle.text = "Edit Habit"
-        etName.setText(habit.name)
-        etDescription.setText(habit.description)
-
-        val dialog = AlertDialog.Builder(requireContext())
-            .setView(dialogView)
-            .create()
-
-        btnSave.setOnClickListener {
-            val name = etName.text.toString().trim()
             val description = etDescription.text.toString().trim()
 
-            if (name.isEmpty()) {
-                etName.error = "Habit name is required"
-                return@setOnClickListener
+            if (habit == null) {
+                val newHabit = Habit(UUID.randomUUID().toString(), name, description)
+                PreferenceHelper.addHabit(requireContext(), newHabit)
+                Toast.makeText(requireContext(), "Habit added!", Toast.LENGTH_SHORT).show()
+            } else {
+                habit.name = name
+                habit.description = description
+                PreferenceHelper.updateHabit(requireContext(), habit)
+                Toast.makeText(requireContext(), "Habit updated!", Toast.LENGTH_SHORT).show()
             }
 
-            // UPDATE operation
-            habit.name = name
-            habit.description = description
-            PreferenceHelper.updateHabit(requireContext(), habit)
-
-            loadHabits()
-            habitAdapter.updateHabits(habits)
-
-            Toast.makeText(requireContext(), "Habit updated!", Toast.LENGTH_SHORT).show()
+            refreshHabitList()
             dialog.dismiss()
         }
 
-        btnCancel.setOnClickListener {
-            dialog.dismiss()
-        }
-
+        btnCancel.setOnClickListener { dialog.dismiss() }
         dialog.show()
     }
 
@@ -174,11 +124,8 @@ class HabitFragment : Fragment() {
             .setTitle("Delete Habit")
             .setMessage("Are you sure you want to delete this habit?")
             .setPositiveButton("Delete") { _, _ ->
-                // DELETE operation
                 PreferenceHelper.deleteHabit(requireContext(), habit.id)
-                loadHabits()
-                habitAdapter.updateHabits(habits)
-                updateEmptyState()
+                refreshHabitList()
                 Toast.makeText(requireContext(), "Habit deleted", Toast.LENGTH_SHORT).show()
             }
             .setNegativeButton("Cancel", null)
@@ -186,17 +133,29 @@ class HabitFragment : Fragment() {
     }
 
     private fun updateHabit(habit: Habit) {
-        // UPDATE operation for completion toggle
         PreferenceHelper.updateHabit(requireContext(), habit)
     }
 
+    private fun refreshHabitList() {
+        habits = PreferenceHelper.getHabits(requireContext())
+        habitAdapter.updateHabits(habits)
+        updateEmptyState()
+        updateWidget()
+    }
+
     private fun updateEmptyState() {
-        if (habits.isEmpty()) {
-            tvEmptyState.visibility = View.VISIBLE
-            rvHabits.visibility = View.GONE
-        } else {
-            tvEmptyState.visibility = View.GONE
-            rvHabits.visibility = View.VISIBLE
-        }
+        tvEmptyState.visibility = if (habits.isEmpty()) View.VISIBLE else View.GONE
+        rvHabits.visibility = if (habits.isEmpty()) View.GONE else View.VISIBLE
+    }
+
+    // Function to update the home screen widget
+    private fun updateWidget() {
+        val intent = Intent(requireContext(), HabitWidgetProvider::class.java)
+        intent.action = AppWidgetManager.ACTION_APPWIDGET_UPDATE
+
+        val ids = AppWidgetManager.getInstance(requireContext())
+            .getAppWidgetIds(ComponentName(requireContext(), HabitWidgetProvider::class.java))
+        intent.putExtra(AppWidgetManager.EXTRA_APPWIDGET_IDS, ids)
+        requireContext().sendBroadcast(intent)
     }
 }
