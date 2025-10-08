@@ -1,5 +1,6 @@
 package com.vishwawijekoon.habit360.notifications
 
+import android.app.AlarmManager
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
@@ -10,6 +11,7 @@ import android.os.Build
 import androidx.core.app.NotificationCompat
 import com.vishwawijekoon.habit360.R
 import com.vishwawijekoon.habit360.activities.MainActivity
+import com.vishwawijekoon.habit360.utils.PreferenceHelper
 
 class HydrationReceiver : BroadcastReceiver() {
 
@@ -21,6 +23,9 @@ class HydrationReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         createNotificationChannel(context)
         showNotification(context)
+
+        // Reschedule the next notification
+        rescheduleNextNotification(context)
     }
 
     private fun createNotificationChannel(context: Context) {
@@ -60,5 +65,38 @@ class HydrationReceiver : BroadcastReceiver() {
 
         val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         notificationManager.notify(NOTIFICATION_ID, builder.build())
+    }
+
+    private fun rescheduleNextNotification(context: Context) {
+        val intervalMinutes = PreferenceHelper.getHydrationInterval(context)
+        if (intervalMinutes > 0) {
+            val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+            val intent = Intent(context, HydrationReceiver::class.java)
+
+            val pendingIntentFlags = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+            } else {
+                PendingIntent.FLAG_UPDATE_CURRENT
+            }
+
+            val pendingIntent = PendingIntent.getBroadcast(context, NOTIFICATION_ID, intent, pendingIntentFlags)
+
+            val intervalMillis = intervalMinutes * 60 * 1000L
+            val nextTriggerTime = System.currentTimeMillis() + intervalMillis
+
+            try {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                    alarmManager.setExactAndAllowWhileIdle(
+                        AlarmManager.RTC_WAKEUP,
+                        nextTriggerTime,
+                        pendingIntent
+                    )
+                } else {
+                    alarmManager.setExact(AlarmManager.RTC_WAKEUP, nextTriggerTime, pendingIntent)
+                }
+            } catch (e: SecurityException) {
+                // Handle case where exact alarms are not allowed
+            }
+        }
     }
 }

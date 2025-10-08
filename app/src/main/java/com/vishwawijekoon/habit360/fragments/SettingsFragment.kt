@@ -1,9 +1,11 @@
 package com.vishwawijekoon.habit360.fragments
 
+import android.Manifest
 import android.app.AlarmManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
 import android.view.LayoutInflater
@@ -11,6 +13,8 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.Button
 import android.widget.Toast
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import com.google.android.material.textfield.TextInputEditText
 import com.vishwawijekoon.habit360.R
@@ -23,6 +27,15 @@ class SettingsFragment : Fragment() {
     private lateinit var etInterval: TextInputEditText
     private lateinit var btnSaveInterval: Button
     private lateinit var btnLogout: Button
+
+    // Request notification permission for Android 13+
+    private val requestPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { isGranted: Boolean ->
+        if (!isGranted) {
+            Toast.makeText(requireContext(), "Notification permission is required for reminders", Toast.LENGTH_LONG).show()
+        }
+    }
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
@@ -52,7 +65,23 @@ class SettingsFragment : Fragment() {
 
     private fun setupListeners() {
         btnSaveInterval.setOnClickListener {
-            saveHydrationReminder()
+            val intervalText = etInterval.text.toString()
+            if (intervalText.isNotEmpty()) {
+                val intervalMinutes = intervalText.toInt()
+                if (intervalMinutes > 0) {
+                    // Check and request notification permission first
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                        if (ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.POST_NOTIFICATIONS)
+                            != PackageManager.PERMISSION_GRANTED) {
+                            requestPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                            return@setOnClickListener
+                        }
+                    }
+                    saveHydrationInterval(intervalMinutes)
+                } else {
+                    Toast.makeText(requireContext(), "Please enter a valid interval", Toast.LENGTH_SHORT).show()
+                }
+            }
         }
 
         btnLogout.setOnClickListener {
@@ -60,15 +89,7 @@ class SettingsFragment : Fragment() {
         }
     }
 
-    private fun saveHydrationReminder() {
-        val intervalText = etInterval.text.toString().trim()
-        val intervalMinutes = intervalText.toIntOrNull()
-
-        if (intervalMinutes == null || intervalMinutes <= 0) {
-            Toast.makeText(requireContext(), "Please enter a valid interval in minutes.", Toast.LENGTH_SHORT).show()
-            return
-        }
-
+    private fun saveHydrationInterval(intervalMinutes: Int) {
         PreferenceHelper.setHydrationInterval(requireContext(), intervalMinutes)
         scheduleHydrationReminder(intervalMinutes)
 
@@ -85,21 +106,38 @@ class SettingsFragment : Fragment() {
             PendingIntent.FLAG_UPDATE_CURRENT
         }
 
-        val pendingIntent = PendingIntent.getBroadcast(requireContext(), 0, intent, pendingIntentFlags)
+        val pendingIntent = PendingIntent.getBroadcast(
+            requireContext(),
+            HydrationReceiver.NOTIFICATION_ID, // Use consistent request code
+            intent,
+            pendingIntentFlags
+        )
 
         // Cancel any existing alarm to reset it
         alarmManager.cancel(pendingIntent)
 
-        // Set the new repeating alarm
+        // Schedule the first alarm
         val intervalMillis = intervalMinutes * 60 * 1000L
         val triggerTime = System.currentTimeMillis() + intervalMillis
 
-        alarmManager.setRepeating(
-            AlarmManager.RTC_WAKEUP,
-            triggerTime,
-            intervalMillis,
-            pendingIntent
-        )
+        try {
+            // Use setExactAndAllowWhileIdle for better reliability
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                alarmManager.setExactAndAllowWhileIdle(
+                    AlarmManager.RTC_WAKEUP,
+                    triggerTime,
+                    pendingIntent
+                )
+            } else {
+                alarmManager.setExact(AlarmManager.RTC_WAKEUP, triggerTime, pendingIntent)
+            }
+
+            // Store the interval for rescheduling
+            PreferenceHelper.setHydrationInterval(requireContext(), intervalMinutes)
+
+        } catch (e: SecurityException) {
+            Toast.makeText(requireContext(), "Unable to schedule exact alarms. Please disable battery optimization for this app.", Toast.LENGTH_LONG).show()
+        }
     }
 
     private fun logout() {
