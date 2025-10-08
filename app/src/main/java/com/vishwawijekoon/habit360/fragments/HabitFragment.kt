@@ -14,7 +14,7 @@ import android.widget.Toast
 import androidx.fragment.app.Fragment
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
-import com.google.android.material.floatingactionbutton.FloatingActionButton
+import android.widget.ImageView
 import com.google.android.material.textfield.TextInputEditText
 import com.vishwawijekoon.habit360.R
 import com.vishwawijekoon.habit360.adapters.HabitAdapter
@@ -26,7 +26,7 @@ import java.util.*
 class HabitFragment : Fragment() {
 
     private lateinit var rvHabits: RecyclerView
-    private lateinit var fabAddHabit: FloatingActionButton
+    private lateinit var fabAddHabit: ImageView
     private lateinit var tvEmptyState: TextView
     private lateinit var habitAdapter: HabitAdapter
     private var habits = mutableListOf<Habit>()

@@ -19,6 +19,9 @@ class MainActivity : AppCompatActivity() {
 
         bottomNavigation = findViewById(R.id.bottomNavigation)
 
+
+        bottomNavigation.itemIconTintList = null
+
         if (savedInstanceState == null) {
             loadFragment(HabitFragment())
         }
